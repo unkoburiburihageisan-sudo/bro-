@@ -1,0 +1,161 @@
+// ===============================
+// ブロスタ風シンプルゲーム（HTML + JS）
+// ===============================
+
+// === HTMLをそのまま index.html に貼る ===
+/*
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Brawl Clone</title>
+<style>
+body { margin:0; overflow:hidden; background:#111; }
+canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script src="game.js"></script>
+</body>
+</html>
+*/
+
+// === ↓ game.js の中身 ↓ ===
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// プレイヤー
+const player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    size: 20,
+    speed: 4,
+    color: "cyan",
+    hp: 100
+};
+
+// 弾
+let bullets = [];
+
+// 敵
+let enemies = [];
+
+// 操作
+let keys = {};
+window.addEventListener("keydown", e => keys[e.key] = true);
+window.addEventListener("keyup", e => keys[e.key] = false);
+
+// マウスクリックで弾発射
+window.addEventListener("click", e => {
+    const angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+    bullets.push({
+        x: player.x,
+        y: player.y,
+        dx: Math.cos(angle) * 8,
+        dy: Math.sin(angle) * 8,
+        size: 5
+    });
+});
+
+// 敵スポーン
+setInterval(() => {
+    enemies.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: 20,
+        speed: 1.5,
+        hp: 30
+    });
+}, 1500);
+
+// 更新
+function update() {
+    // 移動
+    if (keys["w"]) player.y -= player.speed;
+    if (keys["s"]) player.y += player.speed;
+    if (keys["a"]) player.x -= player.speed;
+    if (keys["d"]) player.x += player.speed;
+
+    // 弾移動
+    bullets.forEach(b => {
+        b.x += b.dx;
+        b.y += b.dy;
+    });
+
+    // 敵移動（プレイヤー追跡）
+    enemies.forEach(e => {
+        const angle = Math.atan2(player.y - e.y, player.x - e.x);
+        e.x += Math.cos(angle) * e.speed;
+        e.y += Math.sin(angle) * e.speed;
+    });
+
+    // 当たり判定
+    bullets.forEach((b, bi) => {
+        enemies.forEach((e, ei) => {
+            const dist = Math.hypot(b.x - e.x, b.y - e.y);
+            if (dist < b.size + e.size) {
+                e.hp -= 10;
+                bullets.splice(bi, 1);
+                if (e.hp <= 0) enemies.splice(ei, 1);
+            }
+        });
+    });
+
+    enemies.forEach((e, i) => {
+        const dist = Math.hypot(player.x - e.x, player.y - e.y);
+        if (dist < player.size + e.size) {
+            player.hp -= 1;
+            if (player.hp <= 0) {
+                alert("ゲームオーバー");
+                location.reload();
+            }
+        }
+    });
+}
+
+// 描画
+function draw() {
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // プレイヤー
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 弾
+    ctx.fillStyle = "yellow";
+    bullets.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // 敵
+    ctx.fillStyle = "red";
+    enemies.forEach(e => {
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // HP表示
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("HP: " + player.hp, 20, 30);
+}
+
+// ループ
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
